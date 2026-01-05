@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	bybit "github.com/bybit-exchange/bybit.go.api"
+	bybit "github.com/prodex/bybit.go.api"
 	"time"
 )
 

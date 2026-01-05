@@ -73,6 +73,7 @@ type WebSocket struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	isConnected  bool
+	debug        bool
 }
 
 type WebsocketOption func(*WebSocket)

@@ -1,4 +1,4 @@
-module github.com/bybit-exchange/bybit.go.api
+module github.com/prodex/bybit.go.api
 
 go 1.21
 
