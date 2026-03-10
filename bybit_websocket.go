@@ -21,7 +21,7 @@ func (b *WebSocket) handleIncomingMessages() {
 	for {
 		_, message, err := b.conn.ReadMessage()
 		if err != nil {
-			b.debug("Error reading:", err)
+			b.debug("Error reading: %v", err)
 			b.isConnected = false
 			return
 		}
@@ -29,7 +29,7 @@ func (b *WebSocket) handleIncomingMessages() {
 		if b.onMessage != nil {
 			err := b.onMessage(string(message))
 			if err != nil {
-				b.debug("Error handling message:", err)
+				b.debug("Error handling message: %v", err)
 				return
 			}
 		}
@@ -150,7 +150,7 @@ func (b *WebSocket) Connect() *WebSocket {
 
 	if b.requiresAuthentication() {
 		if err = b.sendAuth(); err != nil {
-			b.debug("Failed Connection:", fmt.Sprintf("%v", err))
+			b.debug("Failed Connection: %v", err)
 			return nil
 		}
 	}
@@ -172,9 +172,9 @@ func (b *WebSocket) SendSubscription(args []string) (*WebSocket, error) {
 		"op":     "subscribe",
 		"args":   args,
 	}
-	b.debug("subscribe msg:", fmt.Sprintf("%v", subMessage["args"]))
+	b.debug("subscribe msg: %v", subMessage["args"])
 	if err := b.sendAsJson(subMessage); err != nil {
-		b.debug("Failed to send subscription:", err)
+		b.debug("Failed to send subscription: %v", err)
 		return b, err
 	}
 	b.debug("Subscription sent successfully.")
@@ -194,11 +194,11 @@ func (b *WebSocket) SendRequest(op string, args map[string]interface{}, headers 
 		"op":     op,
 		"args":   []interface{}{args},
 	}
-	b.debug("request headers:", fmt.Sprintf("%v", request["header"]))
-	b.debug("request op channel:", fmt.Sprintf("%v", request["op"]))
-	b.debug("request msg:", fmt.Sprintf("%v", request["args"]))
+	b.debug("request headers: %v", request["header"])
+	b.debug("request op channel: %v", request["op"])
+	b.debug("request msg: %v", request["args"])
 	if err := b.sendAsJson(request); err != nil {
-		b.debug("Failed to send websocket trade request:", err)
+		b.debug("Failed to send websocket trade request: %v", err)
 		return b, err
 	}
 	b.debug("Successfully sent websocket trade request.")
@@ -206,11 +206,11 @@ func (b *WebSocket) SendRequest(op string, args map[string]interface{}, headers 
 }
 
 func (b *WebSocket) SendTradeRequest(tradeTruest map[string]interface{}) (*WebSocket, error) {
-	b.debug("trade request headers:", fmt.Sprintf("%v", tradeTruest["header"]))
-	b.debug("trade request op channel:", fmt.Sprintf("%v", tradeTruest["op"]))
-	b.debug("trade request msg:", fmt.Sprintf("%v", tradeTruest["args"]))
+	b.debug("trade request headers: %v", tradeTruest["header"])
+	b.debug("trade request op channel: %v", tradeTruest["op"])
+	b.debug("trade request msg: %v", tradeTruest["args"])
 	if err := b.sendAsJson(tradeTruest); err != nil {
-		b.debug("Failed to send websocket trade request:", err)
+		b.debug("Failed to send websocket trade request: %v", err)
 		return b, err
 	}
 	b.debug("Successfully sent websocket trade request.")
@@ -236,17 +236,17 @@ func ping(b *WebSocket) {
 			}
 			jsonPingMessage, err := json.Marshal(pingMessage)
 			if err != nil {
-				b.debug("Failed to marshal ping message:", err)
+				b.debug("Failed to marshal ping message: %v", err)
 				continue
 			}
 			b.writeMu.Lock()
 			err = b.conn.WriteMessage(websocket.TextMessage, jsonPingMessage)
 			b.writeMu.Unlock()
 			if err != nil {
-				b.debug("Failed to send ping:", err)
+				b.debug("Failed to send ping: %v", err)
 				return
 			}
-			b.debug("Ping sent with UTC time:", currentTime)
+			b.debug("Ping sent with UTC time: %v", currentTime)
 
 		case <-b.ctx.Done():
 			b.debug("Ping context closed, stopping ping.")
@@ -290,7 +290,7 @@ func (b *WebSocket) sendAuth() error {
 		"op":     "auth",
 		"args":   []interface{}{b.apiKey, expires, signature},
 	}
-	b.debug("auth args:", fmt.Sprintf("%v", authMessage["args"]))
+	b.debug("auth args: %v", authMessage["args"])
 	return b.sendAsJson(authMessage)
 }
 

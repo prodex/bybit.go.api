@@ -2,9 +2,10 @@ package bybit_connector
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/prodex/bybit.go.api/handlers"
 	"github.com/prodex/bybit.go.api/models"
-	"net/http"
 )
 
 func (s *BybitClientRequest) PlacePreCheckOrder(ctx context.Context, opts ...RequestOption) (res *ServerResponse, err error) {
