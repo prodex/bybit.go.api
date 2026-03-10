@@ -72,9 +72,31 @@ type MarketPremiumIndexPriceKlineResponse struct {
 }
 
 type InstrumentInfoResponse struct {
-	Category       Category      `json:"category"`
-	NextPageCursor string        `json:"nextPageCursor"`
-	List           []interface{} `json:"list"`
+	Category       Category     `json:"category"`
+	NextPageCursor string       `json:"nextPageCursor"`
+	List           []Instrument `json:"list"`
+}
+
+type Instrument struct {
+	Symbol             string         `json:"symbol"`
+	ContractType       string         `json:"contractType"`
+	OptionType         string         `json:"optionType"`
+	Innovation         string         `json:"innovation"`
+	Status             SymbolStatus   `json:"status"`
+	BaseCoin           string         `json:"baseCoin"`
+	QuoteCoin          string         `json:"quoteCoin"`
+	LaunchTime         string         `json:"launchTime"`
+	DeliveryTime       string         `json:"deliveryTime"`
+	DeliveryFeeRate    string         `json:"deliveryFeeRate"`
+	PriceScale         string         `json:"priceScale"`
+	MarginTrading      string         `json:"marginTrading"`
+	LeverageFilter     LeverageFilter `json:"leverageFilter"`
+	PriceFilter        PriceFilter    `json:"priceFilter"`
+	LotSizeFilter      LotSizeFilter  `json:"lotSizeFilter"`
+	UnifiedMarginTrade bool           `json:"unifiedMarginTrade"`
+	FundingInterval    int            `json:"fundingInterval"`
+	SettleCoin         string         `json:"settleCoin"`
+	CopyTrading        string         `json:"copyTrading"`
 }
 
 type SpotInstrument struct {

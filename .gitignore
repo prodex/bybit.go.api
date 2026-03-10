@@ -1,0 +1,37 @@
+# binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# IDE
+.idea/
+.vscode/
+.zed/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+.env
+
+#test
+*.test
+bin/
+vendor/
+internal/dev
+cmd/dev
+
+*.log
+
+.dev/
+.dev/dev.md
+
+# Claude Code local settings
+.aiassistant/
+.claude/*
+!.claude/CLAUDE.md
+!.claude/settings.json
