@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -66,6 +67,7 @@ func (b *WebSocket) SetMessageHandler(handler MessageHandler) {
 
 type WebSocket struct {
 	conn         *websocket.Conn
+	writeMu      sync.Mutex
 	url          string
 	apiKey       string
 	apiSecret    string
@@ -237,7 +239,10 @@ func ping(b *WebSocket) {
 				b.debug("Failed to marshal ping message:", err)
 				continue
 			}
-			if err := b.conn.WriteMessage(websocket.TextMessage, jsonPingMessage); err != nil {
+			b.writeMu.Lock()
+			err = b.conn.WriteMessage(websocket.TextMessage, jsonPingMessage)
+			b.writeMu.Unlock()
+			if err != nil {
 				b.debug("Failed to send ping:", err)
 				return
 			}
@@ -298,6 +303,8 @@ func (b *WebSocket) sendAsJson(v interface{}) error {
 }
 
 func (b *WebSocket) send(message string) error {
+	b.writeMu.Lock()
+	defer b.writeMu.Unlock()
 	return b.conn.WriteMessage(websocket.TextMessage, []byte(message))
 }
 
