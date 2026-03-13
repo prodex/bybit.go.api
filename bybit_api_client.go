@@ -38,7 +38,9 @@ type ServerResponse struct {
 }
 
 func SendRequest(ctx context.Context, opts []RequestOption, r *request, s *BybitClientRequest, err error) ([]byte, error) {
-	r.setParams(s.params)
+	if _, err := r.setParams(s.params); err != nil {
+		return nil, err
+	}
 	data, err := s.c.callAPI(ctx, r, opts...)
 	return data, err
 }
@@ -138,11 +140,13 @@ func newJSON(data []byte) (j *simplejson.Json, err error) {
 // NewBybitHttpClient NewClient Create client function for initialising new Bybit client
 func NewBybitHttpClient(apiKey string, APISecret string, options ...ClientOption) *Client {
 	c := &Client{
-		APIKey:     apiKey,
-		APISecret:  APISecret,
-		BaseURL:    MAINNET,
-		HTTPClient: http.DefaultClient,
-		Logger:     log.New(os.Stderr, Name, log.LstdFlags),
+		APIKey:    apiKey,
+		APISecret: APISecret,
+		BaseURL:   MAINNET,
+		HTTPClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+		Logger: log.New(os.Stderr, Name, log.LstdFlags),
 	}
 
 	// Apply the provided options
@@ -200,7 +204,7 @@ func (c *Client) parseRequest(r *request, opts ...RequestOption) (err error) {
 		var signatureBase []byte
 		if r.method == "POST" {
 			header.Set("Content-Type", "application/json")
-			signatureBase = []byte(strconv.FormatInt(timeStamp, 10) + c.APIKey + r.recvWindow + string(r.params[:]))
+			signatureBase = []byte(strconv.FormatInt(timeStamp, 10) + c.APIKey + r.recvWindow + string(r.params))
 		} else {
 			signatureBase = []byte(strconv.FormatInt(timeStamp, 10) + c.APIKey + r.recvWindow + queryString)
 		}
@@ -239,10 +243,6 @@ func (c *Client) callAPI(ctx context.Context, r *request, opts ...RequestOption)
 	if err != nil {
 		return []byte{}, err
 	}
-	data, err = io.ReadAll(res.Body)
-	if err != nil {
-		return []byte{}, err
-	}
 	defer func() {
 		cerr := res.Body.Close()
 		// Only overwrite the returned error if the original error was nil and an
@@ -251,6 +251,10 @@ func (c *Client) callAPI(ctx context.Context, r *request, opts ...RequestOption)
 			err = cerr
 		}
 	}()
+	data, err = io.ReadAll(res.Body)
+	if err != nil {
+		return []byte{}, err
+	}
 	c.debug("response: %#v", res)
 	c.debug("response body: %s", string(data))
 	c.debug("response status code: %d", res.StatusCode)

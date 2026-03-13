@@ -3,7 +3,6 @@ package bybit_connector
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 )
@@ -49,7 +48,7 @@ func (r *request) setParam(key string, value interface{}) *request {
 }
 
 // setParams set params with key/values to query string or body
-func (r *request) setParams(m params) *request {
+func (r *request) setParams(m params) (*request, error) {
 	if r.method == http.MethodGet {
 		for k, v := range m {
 			r.setParam(k, v)
@@ -57,12 +56,12 @@ func (r *request) setParams(m params) *request {
 	} else if r.method == http.MethodPost {
 		jsonData, err := json.Marshal(m)
 		if err != nil {
-			log.Fatal(err)
+			return r, err
 		}
 		r.params = jsonData
 	}
 
-	return r
+	return r, nil
 }
 
 func (r *request) validate() (err error) {

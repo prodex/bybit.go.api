@@ -102,13 +102,14 @@ func newRequest() *request {
 }
 
 func newSignedRequest() *request {
-	return newRequest().setParams(params{
+	r, _ := newRequest().setParams(params{
 		timestampKey:  "",
 		signatureKey:  "",
 		apiRequestKey: "",
 		recvWindowKey: "5000",
 		signTypeKey:   "2",
 	})
+	return r
 }
 
 type assertReqFunc func(r *request)
@@ -147,4 +148,91 @@ func (m *mockedClient) do(req *http.Request) (*http.Response, error) {
 func TestFormatTimestamp(t *testing.T) {
 	tm, _ := time.Parse("2006-01-02 15:04:05", "2018-06-01 01:01:01")
 	assert.Equal(t, int64(1527814861000), FormatTimestamp(tm))
+}
+
+// trackableBody tracks whether Close was called
+type trackableBody struct {
+	io.Reader
+	closed bool
+}
+
+func (tb *trackableBody) Close() error {
+	tb.closed = true
+	return nil
+}
+
+func TestCallAPI_BodyClosed(t *testing.T) {
+	body := &trackableBody{Reader: bytes.NewBufferString(`{"retCode":0,"retMsg":"OK"}`)}
+	c := NewBybitHttpClient("key", "secret", WithBaseURL("https://test.com"))
+	c.do = func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       body,
+		}, nil
+	}
+
+	r := &request{method: http.MethodGet, endpoint: "/test"}
+	_, err := c.callAPI(context.Background(), r)
+	assert.NoError(t, err)
+	assert.True(t, body.closed, "response body should be closed after callAPI")
+}
+
+func TestCallAPI_HTTPError(t *testing.T) {
+	data := `{"retCode":10001,"retMsg":"invalid request"}`
+	c := NewBybitHttpClient("key", "secret", WithBaseURL("https://test.com"))
+	c.do = func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusBadRequest,
+			Body:       io.NopCloser(bytes.NewBufferString(data)),
+		}, nil
+	}
+
+	r := &request{method: http.MethodGet, endpoint: "/test"}
+	result, err := c.callAPI(context.Background(), r)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestCallAPI_SignedPOST(t *testing.T) {
+	c := NewBybitHttpClient("testAPIKey", "testAPISecret", WithBaseURL("https://test.com"))
+	var capturedReq *http.Request
+	c.do = func(req *http.Request) (*http.Response, error) {
+		capturedReq = req
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBufferString(`{"retCode":0,"retMsg":"OK"}`)),
+		}, nil
+	}
+
+	r := &request{
+		method:   http.MethodPost,
+		endpoint: "/v5/order/create",
+		secType:  secTypeSigned,
+	}
+	r.setParams(params{"symbol": "BTCUSDT", "side": "Buy"})
+	_, err := c.callAPI(context.Background(), r)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, capturedReq)
+	assert.NotEmpty(t, capturedReq.Header.Get(signatureKey))
+	assert.NotEmpty(t, capturedReq.Header.Get(timestampKey))
+	assert.Equal(t, "testAPIKey", capturedReq.Header.Get(apiRequestKey))
+	assert.Equal(t, "application/json", capturedReq.Header.Get("Content-Type"))
+}
+
+func TestNewBybitHttpClient_WithProxy(t *testing.T) {
+	// Save original transport
+	originalTransport := http.DefaultClient.Transport
+
+	_ = NewBybitHttpClient("key", "secret", WithProxyURL("http://proxy.example.com:8080"))
+
+	// http.DefaultClient.Transport should NOT have been mutated
+	assert.Equal(t, originalTransport, http.DefaultClient.Transport,
+		"http.DefaultClient.Transport should not be mutated by proxy configuration")
+}
+
+func TestNewBybitHttpClient_DefaultTimeout(t *testing.T) {
+	c := NewBybitHttpClient("key", "secret")
+	assert.Equal(t, 30*time.Second, c.HTTPClient.Timeout,
+		"default HTTP client should have 30s timeout")
 }
