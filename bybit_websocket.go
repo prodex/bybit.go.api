@@ -36,27 +36,47 @@ func (b *WebSocket) handleIncomingMessages() {
 	}
 }
 
+func (b *WebSocket) reconnect() bool {
+	wssUrl := b.url
+	if b.maxAliveTime != "" {
+		wssUrl += "?max_alive_time=" + b.maxAliveTime
+	}
+	conn, _, err := websocket.DefaultDialer.Dial(wssUrl, nil)
+	if err != nil {
+		b.debug("Reconnect dial failed: %v", err)
+		return false
+	}
+	b.conn = conn
+
+	if b.requiresAuthentication() {
+		if err = b.sendAuth(); err != nil {
+			b.debug("Reconnect auth failed: %v", err)
+			b.conn.Close()
+			b.conn = nil
+			return false
+		}
+	}
+	return true
+}
+
 func (b *WebSocket) monitorConnection() {
-	ticker := time.NewTicker(time.Second * 5) // Check every 5 seconds
+	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 
 	for {
-		<-ticker.C
-		if !b.isConnected && b.ctx.Err() == nil { // Check if disconnected and context not done
-			b.debug("Attempting to reconnect...")
-			con := b.Connect() // Example, adjust parameters as needed
-			if con == nil {
-				b.debug("Reconnection failed:")
-			} else {
-				b.isConnected = true
-				go b.handleIncomingMessages() // Restart message handling
-			}
-		}
-
 		select {
 		case <-b.ctx.Done():
-			return // Stop the routine if context is done
-		default:
+			return
+		case <-ticker.C:
+			if !b.isConnected {
+				b.debug("Attempting to reconnect...")
+				if b.reconnect() {
+					b.isConnected = true
+					go b.handleIncomingMessages()
+				} else {
+					b.debug("Reconnection failed")
+				}
+			}
 		}
 	}
 }
@@ -147,19 +167,24 @@ func (b *WebSocket) Connect() *WebSocket {
 		wssUrl += "?max_alive_time=" + b.maxAliveTime
 	}
 	b.conn, _, err = websocket.DefaultDialer.Dial(wssUrl, nil)
+	if err != nil {
+		b.debug("Failed to connect: %v", err)
+		return nil
+	}
 
 	if b.requiresAuthentication() {
 		if err = b.sendAuth(); err != nil {
-			b.debug("Failed Connection: %v", err)
+			b.debug("Failed Authentication: %v", err)
+			b.conn.Close()
+			b.conn = nil
 			return nil
 		}
 	}
 	b.isConnected = true
 
+	b.ctx, b.cancel = context.WithCancel(context.Background())
 	go b.handleIncomingMessages()
 	go b.monitorConnection()
-
-	b.ctx, b.cancel = context.WithCancel(context.Background())
 	go ping(b)
 
 	return b
